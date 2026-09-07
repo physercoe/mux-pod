@@ -11,11 +11,11 @@ crate-type = ["rlib"]
 [dependencies]
 # Versions MUST match src-tauri/Cargo.toml exactly so the crypto is byte-identical
 # (the whole point of D-3: compile the SAME crypto, don't reimplement it).
-aes-gcm = "0.10"
-x25519-dalek = { version = "2", features = ["static_secrets"] }
-hkdf = "0.12"
-sha2 = "0.10"
-argon2 = "0.5"
-base64 = "0.22"
-rand_core = { version = "0.6", features = ["getrandom"] }
+aes-gcm = "0.11"
+x25519-dalek = { version = "3", features = ["static_secrets"] }
+hkdf = "0.13"
+sha2 = "0.11"
+argon2 = "0.6"
+base64 = "0.23"
+rand_core = { version = "0.10", features = ["getrandom"] }
 data-encoding = "2"
