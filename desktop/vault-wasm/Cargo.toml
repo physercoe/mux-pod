@@ -13,4 +13,4 @@ wasm-bindgen = "0.2"
 # vault-core's OsRng → getrandom 0.2 (via rand_core 0.6). The `js` feature routes
 # it to the host's Web Crypto (globalThis.crypto) under wasm32 — required for the
 # nodejs target to seed keys/nonces. Feature-unifies with the transitive dep.
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.4", features = ["js"] }
