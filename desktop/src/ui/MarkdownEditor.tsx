@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { EditorState, EditorSelection, RangeSetBuilder } from '@codemirror/state';
+import { Compartment, EditorState, EditorSelection, RangeSetBuilder } from '@codemirror/state';
 import {
   Decoration,
   type DecorationSet,
@@ -194,9 +194,11 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
-}>(function MarkdownEditor({ value, onChange, placeholder }, ref) {
+  softWrap?: boolean;
+}>(function MarkdownEditor({ value, onChange, placeholder, softWrap = true }, ref) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const wrapComp = useRef(new Compartment()).current;
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
@@ -246,7 +248,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, {
           drawSelection(),
           highlightActiveLine(),
           indentOnInput(),
-          EditorView.lineWrapping,
+          wrapComp.of(softWrap ? EditorView.lineWrapping : []),
           markdown({ base: markdownLanguage }),
           syntaxHighlighting(mdHighlight),
           imagePreview,
@@ -273,6 +275,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: wrapComp.reconfigure(softWrap ? EditorView.lineWrapping : []) });
+  }, [softWrap, wrapComp]);
 
   // Reconcile an external value change (agent insert, undo from elsewhere) into
   // the doc. The editor's own edits set value === current, so this is a no-op then.

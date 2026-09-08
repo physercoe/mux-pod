@@ -131,6 +131,16 @@ function Editor({ doc }: { doc: Doc }): JSX.Element {
       /* ignore */
     }
   }
+  const [softWrap, setSoftWrap] = useState(() => localStorage.getItem('termipod.author.softWrap') !== 'false');
+  function toggleWrap(): void {
+    const next = !softWrap;
+    setSoftWrap(next);
+    try {
+      localStorage.setItem('termipod.author.softWrap', String(next));
+    } catch {
+      /* ignore */
+    }
+  }
   const words = doc.body.trim() ? doc.body.trim().split(/\s+/).length : 0;
   // The preview renders the debounced body, not the per-keystroke one (#311); the
   // outline recomputes from the same debounced body, not per keystroke.
@@ -202,6 +212,15 @@ function Editor({ doc }: { doc: Doc }): JSX.Element {
             ))}
           </div>
         )}
+        <button
+          className={`icon-btn${softWrap ? ' active' : ''}`}
+          title={t('inspect.wrap')}
+          aria-label={t('inspect.wrap')}
+          aria-pressed={softWrap}
+          onClick={toggleWrap}
+        >
+          <Icon name="wrap" size={15} />
+        </button>
         <span className="spacer" />
         <span className="author-doc-meta muted small">
           {t.plural('author.words', words)}
@@ -216,7 +235,7 @@ function Editor({ doc }: { doc: Doc }): JSX.Element {
           )}
         </span>
       </div>
-      <div className={`author-body mode-${mode}`} ref={bodyElRef}>
+      <div className={`author-body mode-${mode}${softWrap ? ' soft-wrap' : ''}`} ref={bodyElRef}>
         {mode === 'wysiwyg' ? (
           <Suspense fallback={<div className="milkdown-host muted region-pad">{t('author.loadingEditor')}</div>}>
             <WysiwygEditor
@@ -232,6 +251,7 @@ function Editor({ doc }: { doc: Doc }): JSX.Element {
               <Suspense fallback={<div className="md-editor muted region-pad">{t('author.loadingEditor')}</div>}>
                 <MarkdownEditor
                   ref={edRef}
+                  softWrap={softWrap}
                   value={doc.body}
                   onChange={(v) => update(doc.id, { body: v })}
                   placeholder={t('author.placeholder')}
