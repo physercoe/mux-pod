@@ -737,6 +737,20 @@ button > .ui-icon:not(:only-child):first-child,
   max-width: 820px;
   margin: 0 auto;
 }
+/* Keep rich-text tables within the editor, including unbroken paths and URLs. */
+.author-body.soft-wrap .milkdown .ProseMirror {
+  overflow-wrap: anywhere;
+}
+.author-body.soft-wrap .milkdown table {
+  width: 100%;
+  table-layout: fixed;
+}
+.author-body.soft-wrap .milkdown th,
+.author-body.soft-wrap .milkdown td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 .md-editor {
   min-height: 0;
   overflow: hidden;

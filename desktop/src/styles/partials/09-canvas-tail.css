@@ -585,27 +585,34 @@
   min-height: 0;
   overflow: auto;
 }
-.mdreader.soft-wrap .md {
+.mdreader.soft-wrap .md,
+.author-body.soft-wrap .md {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
-.mdreader.soft-wrap .md table {
+.mdreader.soft-wrap .md table,
+.author-body.soft-wrap .md table {
   width: 100%;
   table-layout: fixed;
 }
 .mdreader.soft-wrap .md th,
-.mdreader.soft-wrap .md td {
+.author-body.soft-wrap .md th,
+.mdreader.soft-wrap .md td,
+.author-body.soft-wrap .md td {
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 .mdreader.soft-wrap .md pre,
-.mdreader.soft-wrap .md pre code {
+.author-body.soft-wrap .md pre,
+.mdreader.soft-wrap .md pre code,
+.author-body.soft-wrap .md pre code {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
-.mdreader.soft-wrap .md :not(pre) > code {
+.mdreader.soft-wrap .md :not(pre) > code,
+.author-body.soft-wrap .md :not(pre) > code {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
