@@ -975,6 +975,26 @@ button.hero-row:hover {
   border-color: var(--accent);
   color: var(--accent-text);
 }
+/* Connection feedback belongs beside the terminal, also when the nav is folded. */
+.term-connection-status {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--spacing-s8);
+  padding: var(--spacing-s8) var(--spacing-s12);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--font-size-caption);
+}
+.term-connection-status > span:last-of-type {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.term-connecting-spinner {
+  display: inline-flex;
+  flex: 0 0 auto;
+  animation: statusbar-sync-spin 1.1s linear infinite;
+}
 /* The pane area — a flex box whose direction is the split orientation. Every
    session's pane is a child; hidden ones are display:none (never unmounted), so
    the visible ones tile evenly. `row` = side-by-side, `column` = stacked. */
