@@ -104,6 +104,12 @@ export function TerminalPanel(): JSX.Element {
   /** Saved connection being opened directly from its nav context menu. */
   const [quickConnectingId, setQuickConnectingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // This panel stays mounted for the app's lifetime; failures must not.
+  useEffect(() => {
+    if (error === null) return;
+    const timer = setTimeout(() => setError(null), 15_000);
+    return () => clearTimeout(timer);
+  }, [error]);
   const [notice, setNotice] = useState<string | null>(null);
   const cfgRef = useRef<HTMLInputElement>(null);
   // Dock size persists across launches (#319) like the nav width + dock side do.
@@ -302,7 +308,8 @@ export function TerminalPanel(): JSX.Element {
   // other caller passes nothing and so CLEARS a pending rebind — opening a
   // different host from the nav while a reconnect form is up must not silently
   // hijack the dead tab.
-  function openConnect(connId?: string, reconnectTabId?: string): void {
+  function openConnect(connId?: string, reconnectTabId?: string, failure: string | null = null): void {
+    setError(failure);
     setInitialConnId(connId ?? null);
     setReconnectFor(reconnectTabId ?? null);
     setConnecting(true);
@@ -321,33 +328,28 @@ export function TerminalPanel(): JSX.Element {
       return;
     }
 
-    let req: Awaited<ReturnType<typeof buildSavedConnectReq>>;
+    setQuickConnectingId(id);
+    setError(null);
+    const attempt = { cancelled: false };
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      req = await buildSavedConnectReq(conn, `q${Date.now()}`, {
+      const req = await buildSavedConnectReq(conn, `q${Date.now()}`, {
         getPassword: getConnectionPassword,
         getJumpPassword: getConnectionJumpPassword,
         getKey: getKeyMaterial,
       });
-    } catch (e) {
-      setError(msg(e));
-      openConnect(id);
-      return;
-    }
-    if (req === null) {
-      openConnect(id);
-      return;
-    }
-
-    setQuickConnectingId(id);
-    setError(null);
-    const attempt = { cancelled: false };
-    const timer = setTimeout(() => {
-      attempt.cancelled = true;
-      setQuickConnectingId(null);
-      setError(t('term.connectTimeout'));
-      openConnect(id);
-    }, connectTimeoutMs(conn));
-    try {
+      if (attempt.cancelled) return;
+      if (req === null) {
+        openConnect(id);
+        return;
+      }
+      // Credential lookup may wait for an OS-keychain prompt; only the SSH
+      // handshake is subject to the network timeout.
+      timer = setTimeout(() => {
+        attempt.cancelled = true;
+        setQuickConnectingId(null);
+        openConnect(id, undefined, t('term.connectTimeout'));
+      }, connectTimeoutMs(conn));
       const sessionId = await sshConnect(req);
       if (attempt.cancelled) {
         void sshClose(sessionId);
@@ -355,12 +357,10 @@ export function TerminalPanel(): JSX.Element {
       }
       touchConnection(conn.id);
       addTab({ kind: 'ssh', sessionId, title: `${conn.username}@${conn.host}`, connId: conn.id });
+      setError(null);
       setConnecting(false);
     } catch (e) {
-      if (!attempt.cancelled) {
-        setError(msg(e));
-        openConnect(id);
-      }
+      if (!attempt.cancelled) openConnect(id, undefined, msg(e));
     } finally {
       clearTimeout(timer);
       if (!attempt.cancelled) setQuickConnectingId(null);
@@ -414,6 +414,7 @@ export function TerminalPanel(): JSX.Element {
   }
 
   function onConnected(sessionId: string, title: string, connId?: string): void {
+    setError(null);
     // A reconnect rebinds the tab that asked for it instead of opening a second
     // one: same UI id, same pane slot, same scrollback position on screen — and
     // <Screen> keys on sessionId, so it re-streams and clears its dead banner by
@@ -439,6 +440,7 @@ export function TerminalPanel(): JSX.Element {
   // form first and waiting for a Connect click made every reconnect a
   // two-step detour through the connection's detail page.
   async function reconnect(tab: TermTab): Promise<void> {
+    setError(null);
     if (tab.kind === 'local') {
       try {
         const { id, shell } = await ptyOpen({ cols: 80, rows: 24 });
@@ -494,9 +496,8 @@ export function TerminalPanel(): JSX.Element {
     } catch (e) {
       if (!attempt.cancelled) {
         // Fall back to the form with the row preselected; the failure reason
-        // lands in the nav notice so the fallback does not read as a whim.
-        setError(msg(e));
-        openConnect(tab.connId, tab.id);
+        // lands beside the terminal so the fallback does not read as a whim.
+        openConnect(tab.connId, tab.id, msg(e));
       }
     } finally {
       clearTimeout(timer);
@@ -730,7 +731,6 @@ export function TerminalPanel(): JSX.Element {
           <Screen>s are never re-parented. */}
       <aside className={`term-nav${navFold ? ' folded' : ''}`} style={navStyle}>
         {notice !== null && <div className="muted small term-nav-notice">{notice}</div>}
-        {error !== null && <div className="error small term-nav-notice">{error}</div>}
         <div
           className="term-nav-list"
           onContextMenu={(e) => {
@@ -825,6 +825,25 @@ export function TerminalPanel(): JSX.Element {
           </div>
         )}
 
+        {(quickConnectingId !== null || reconnectingId !== null) && (
+          <div className="term-connection-status" role="status" aria-live="polite">
+            <span className="term-connecting-spinner" aria-hidden="true"><Icon name="refresh" size={16} /></span>
+            <span>
+              {t('term.connecting')}{' · '}
+              {quickConnectingId !== null
+                ? conns.find((c) => c.id === quickConnectingId)?.name
+                : tabs.find((tab) => tab.id === reconnectingId)?.title}
+            </span>
+          </div>
+        )}
+        {error !== null && (
+          <div className="term-connection-status error" role="alert">
+            <span>{error}</span>
+            <button className="icon-btn" title={t('common.close')} aria-label={t('common.close')} onClick={() => setError(null)}>
+              <Icon name="close" size={14} />
+            </button>
+          </div>
+        )}
         <div className={`term-panes ${orientation}`}>
           {!tauri ? (
             <div className="term-banner">{t('term.desktopOnly')}</div>
@@ -874,8 +893,10 @@ export function TerminalPanel(): JSX.Element {
                     key={initialConnId ?? '__new__'}
                     initialConnId={initialConnId ?? undefined}
                     onConnected={onConnected}
+                    onConnectStart={() => setError(null)}
                     onSaved={refreshConns}
                     onCancel={() => {
+                      setError(null);
                       setReconnectFor(null);
                       setConnecting(false);
                     }}
@@ -886,7 +907,6 @@ export function TerminalPanel(): JSX.Element {
               {!connecting && tabs.length === 0 && (
                 <div className="term-empty">
                   <p className="muted">{t('term.emptyHint')}</p>
-                  {error !== null && <div className="error">{error}</div>}
                   <div className="term-empty-actions">
                     <button className="primary" onClick={() => void newLocal()}>
                       + {t('term.localShell')}
@@ -984,7 +1004,9 @@ function ConnRow({
           onConnect();
         }}
       >
-        <Icon name="terminal" size={14} />
+        {connecting
+          ? <span className="term-connecting-spinner" aria-hidden="true"><Icon name="refresh" size={14} /></span>
+          : <Icon name="terminal" size={14} />}
       </button>
     </div>
   );

@@ -22,6 +22,7 @@ import {
   type Connection,
 } from '../state/connections';
 import { getKeyMaterial, listKeys, type SshKeyMeta } from '../state/keys';
+import { Icon } from '../ui/Icon';
 import { ConfirmButton } from '../ui/ConfirmButton';
 import { useConfirm } from '../ui/ConfirmModal';
 import { rememberConnection, type ConnectionDraft } from './connectionDraft';
@@ -109,11 +110,13 @@ const BLANK_FORM: FormSnapshot = {
 /// which opens a live terminal tab for it (ADR-052 personal direct SSH).
 export function ConnectForm({
   onConnected,
+  onConnectStart,
   onCancel,
   onSaved,
   initialConnId,
 }: {
   onConnected: (sessionId: string, title: string, connId?: string) => void;
+  onConnectStart?: () => void;
   onCancel?: () => void;
   /** Fired after Save/Update lands a row. The terminal nav mirrors the saved
    *  list into local state and otherwise refreshes only when this form
@@ -327,6 +330,7 @@ export function ConnectForm({
   }
 
   async function connect(): Promise<void> {
+    onConnectStart?.();
     setBusy(true);
     setError(null);
     setPhase(null);
@@ -668,7 +672,8 @@ export function ConnectForm({
           {onCancel !== undefined && !busy && <button onClick={() => void attemptCancel()}>{t('common.cancel')}</button>}
           {busy && <button onClick={cancelConnect}>{t('common.cancel')}</button>}
           <span className="spacer" />
-          <button className="primary" disabled={!canConnect || busy} onClick={() => void connect()}>
+          <button className="primary" aria-busy={busy} disabled={!canConnect || busy} onClick={() => void connect()}>
+            {busy && <span className="term-connecting-spinner" aria-hidden="true"><Icon name="refresh" size={14} /></span>}
             {busy ? (phase !== null ? t(PHASE_KEY[phase]) : t('term.connecting')) : t('term.connect')}
           </button>
         </div>
